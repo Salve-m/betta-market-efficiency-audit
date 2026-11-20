@@ -843,6 +843,8 @@ def generate_modulo_cd_verdict_report(
         ("10. Price-Shopping Max vs Pin Open (> 2%)", "1X2", val_p_open_1x2, val_max_1x2, val_close_1x2, val_ftr, 0.02, ps_gross_edge_1x2),
     ]
 
+    results_by_comm: Dict[Tuple[float, str], BacktestResult] = {}
+
     for comm_idx, (comm_val, comm_title) in enumerate(
         [
             (0.05, "Scenario Realistico Exchange ($c = 5.0\\%$ sulle vincite nette)"),
@@ -869,6 +871,7 @@ def generate_modulo_cd_verdict_report(
                 ev_threshold=thresh,
                 selection_ev_override=ov_ev if comm_val == 0.0 else None,
             )
+            results_by_comm[(comm_val, s_name)] = res
             lines.append(
                 f"| **{res.strategy_name}** | `{res.market}` | {res.n_bets} | {res.net_profit:+.2f} | "
                 f"**{res.roi_pct:+.2f}%** | **{res.mean_clv_pct:+.2f}%** | {res.t_stat_roi:+.2f} | {res.p_val_roi:.4f} | "
@@ -993,14 +996,20 @@ def generate_modulo_cd_verdict_report(
         f"   - Sul mercato **1X2**, la regressione log-lineare addestrata su Train (`1920–2223`) assegna a Pinnacle Opening un peso dominante ($w_{{\\text{{mkt}}}} = {blend_1x2_con.w_mkt:.4f}$) e al modello sui tiri `V2A-Full` un peso nullo o marginale ($w_{{\\text{{mod}}}} = {blend_1x2_con.w_mod:.4f}$). Su Validation (`2324–2425`), il $\\Delta \\text{{LogLoss}}$ rispetto a Pinnacle Opening è `{d_1x2_con:+.6f}` (CI 95% `[{ci_l_1x2_con:+.6f}, {ci_h_1x2_con:+.6f}]`), statisticamente indistinguibile da zero.\n"
         f"   - Sul mercato **Over/Under 2.5**, il peso del modello su Train è $w_{{\\text{{mod}}}} = {blend_ou_con.w_mod:.4f}$ contro $w_{{\\text{{mkt}}}} = {blend_ou_con.w_mkt:.4f}$; su Validation il $\\Delta \\text{{LogLoss}}$ è `{d_ou_con:+.6f}` (CI 95% `[{ci_l_ou_con:+.6f}, {ci_h_ou_con:+.6f}]`), anch'esso non significativo."
     )
+    r_1x2_c5 = results_by_comm[(0.05, "1. V2A-Full Standalone (EV > 0%)")]
+    r_ou_c5 = results_by_comm[(0.05, "3. V2A-Full Standalone (EV > 0%)")]
+    r_bl_1x2_c5 = results_by_comm[(0.05, "5. Market-Anchored Blend (EV > 0%)")]
+    min_dd = min(r_1x2_c5.max_dd_kelly_pct, r_ou_c5.max_dd_kelly_pct, r_1x2_c5.max_dd_flat_pct, r_ou_c5.max_dd_flat_pct)
+    max_dd = max(r_1x2_c5.max_dd_kelly_pct, r_ou_c5.max_dd_kelly_pct, r_1x2_c5.max_dd_flat_pct, r_ou_c5.max_dd_flat_pct)
+
     lines.append(
-        "2. **Incapienza rispetto a Margine d'Apertura + Commissione Exchange ($c = 5\\%$)**:\n"
-        "   - Quando il modello è ancorato al mercato (*Market-Anchored Blend*), la correzione apportata da `V2A-Full` non è mai sufficientemente ampia da superare contemporaneamente l'overround di apertura Pinnacle (~`3.5%`) e la commissione Exchange del `5%` ($N = 0$ scommesse sopra soglia a $c = 5\\%$).\n"
-        "   - Anche rimuovendo totalmente la commissione ($c = 0\\%$), il Blend seleziona pochissime code dove il **CLV medio contro Pinnacle Closing resta negativo**, confermando che l'apertura Pinnacle incorpora già tutte le statistiche storiche di tiri, gol e cartellini rossi dei CSV pubblici."
+        f"2. **Incapienza rispetto a Margine d'Apertura + Commissione Exchange ($c = 5\\%$)**:\n"
+        f"   - Quando il modello è ancorato al mercato (*Market-Anchored Blend*), la correzione apportata da `V2A-Full` non è mai sufficientemente ampia da superare contemporaneamente l'overround di apertura Pinnacle (~`3.5%`) e la commissione Exchange del `5%` ($N = {r_bl_1x2_c5.n_bets}$ scommesse sopra soglia su 1X2 a $c = 5\\%$).\n"
+        f"   - Anche rimuovendo totalmente la commissione ($c = 0\\%$), il Blend seleziona pochissime code dove il **CLV medio contro Pinnacle Closing resta negativo**, confermando che l'apertura Pinnacle incorpora già tutte le statistiche storiche di tiri, gol e cartellini rossi dei CSV pubblici."
     )
     lines.append(
-        "3. **Selezione Avversa sui Modelli Standalone**:\n"
-        "   - I modelli *Standalone* (`V2A-Full` su 1X2 e O/U 2.5) scommettono esattamente dove il mercato possiede informazione contestuale superiore (formazioni, infortuni, mercato), registrando un **CLV medio fortemente negativo (`-6.55%` su 1X2, `-5.13%` su O/U 2.5)** e un **ROI negativo (`-12.50%` su 1X2, `-9.04%` su O/U 2.5 a $c=5\\%$)** con Max Drawdown tra il `79%` e il `99%`."
+        f"3. **Selezione Avversa sui Modelli Standalone (Allineamento Esatto a Tabella 2.1)**:\n"
+        f"   - I modelli *Standalone* (`V2A-Full` con $EV > 0\\%$ a $c = 5\\%$, massimo 1 esito per partita) scommettono esattamente dove il mercato possiede informazione contestuale superiore (formazioni, infortuni, mercato), registrando un **CLV medio fortemente negativo (`{r_1x2_c5.mean_clv_pct:+.2f}%` su 1X2 con $N={r_1x2_c5.n_bets}$, `{r_ou_c5.mean_clv_pct:+.2f}%` su O/U 2.5 con $N={r_ou_c5.n_bets}`)** e un **ROI negativo (`{r_1x2_c5.roi_pct:+.2f}%` su 1X2, `{r_ou_c5.roi_pct:+.2f}%` su O/U 2.5 a $c=5\\%$)** con Max Drawdown compreso tra **`{min_dd:.1f}%` e `{max_dd:.1f}%`**."
     )
     lines.append(
         "4. **Decisione sul Test Cieco (`2526`)**:\n"
