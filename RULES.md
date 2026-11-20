@@ -17,3 +17,10 @@ Queste regole devono essere sempre rilette e rispettate in ogni intervento futur
 | **Validation** | `2324–2425` | Selezione iperparametri, confronto modelli e calibrazione |
 | **Test Cieco** | `2526` | **Inviolabile per scelte di modellazione** (valutazione finale out-of-sample) |
 | **Holdout Live** | `2627` | **Esclusa categoricamente** dal dataset storico |
+
+## Decisioni Consolidate dall'Audit del Modulo A
+
+1. **Metodo di devigging ufficiale di riferimento**: **Power Method**.
+2. **Regola proxy per Test Cieco (`2526`, tuttora bloccato)**:
+   - **Pinnacle Closing (`PSCH / PSCD / PSCA`)** fino al `2026-01-14`;
+   - **Betfair Exchange Closing (`BFECH / BFECD / BFECA`)** dal `2026-01-15` in poi (con fallback **`AvgCH / AvgCD / AvgCA`** dove `BFECH` manca).
