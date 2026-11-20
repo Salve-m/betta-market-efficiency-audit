@@ -17,7 +17,9 @@ In quantitative sports modeling, the most common failure mode is **backtest over
    - Moving from a pure log-linear **Poisson** model to a MAP-regularized **Dixon-Coles** model with promoted-team priors (**Modulo B**), and further to a 2-stage **Quasi-Poisson MAP on Shots (Synthetic xG) + Red-Card Discount + Dixon-Coles** model (**Level 2A / `V2A-Full`**), lowers 1X2 Log-Loss on Train (`0.995255` to `0.991566`) and significantly reduces out-of-sample Validation Log-Loss on **Over/Under 2.5** (`0.675836` to `0.672967`), while slightly worsening out-of-sample Validation Log-Loss on **1X2** (`0.980111` to `0.980532`, though slightly improving 1X2 Brier Score from `0.584161` to `0.583905`), consistently with Table 3.1.
 2. **Orthogonality Test (`w_mod = 0.0000`)**:
    - When tested via a **Market-Anchored Blending** regression trained strictly on `2019/20–2022/23`:
-     $$\operatorname{logit}(p_{\text{blend}}) = w_0 + w_{\text{mkt}} \operatorname{logit}(p_{\text{open}}) + w_{\text{mod}} \operatorname{logit}(p_{\text{V2A}})$$
+
+     $$\mathrm{logit}(p_{\text{blend}}) = w_0 + w_{\text{mkt}} \mathrm{logit}(p_{\text{open}}) + w_{\text{mod}} \mathrm{logit}(p_{\text{V2A}})$$
+
      the non-negative constrained optimizer assigns **$w_{\text{mod}} = 0.0000$** on both 1X2 and Over/Under 2.5.
    - On the frozen out-of-sample Validation partition (`2023/24–2024/25`, 3,504 matches), the 95% paired bootstrap confidence interval (10,000 resamples) for $\Delta \text{LogLoss} = \text{LL}(\text{Blend}) - \text{LL}(\text{Pinnacle Open})$ spans zero across every specification (`[-0.000526, +0.000385]` on 1X2; `[-0.000463, +0.000174]` on O/U 2.5).
 3. **Adverse Selection & Exchange Friction (`c = 5%`)**:
@@ -123,12 +125,12 @@ BETTA/
 ### Quickstart & Verification
 
 ```powershell
-# 1. Create and activate virtual environment
+# Step 1: Create and activate virtual environment
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 pip install -r requirements.txt
 
-# 2. Run the full pipeline in order
+# Step 2: Run the full pipeline in order
 python src/level1_ingest.py
 python src/modulo_a_market.py
 python src/modulo_b_dixon_coles.py
@@ -136,7 +138,7 @@ python src/level2a_shots_dc.py
 python src/modulo_cd_backtest.py
 python src/generate_portfolio_charts.py
 
-# 3. Execute the complete 35-test verification suite
+# Step 3: Execute the complete 35-test verification suite
 pytest -v
 ```
 
